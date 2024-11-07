@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DefaultAssociations>
+  <Association Identifier=".js" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".wsh" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".vbs" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".wsc" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".sct" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".jse" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".wsf" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".shs" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".shb" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".hta" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".vbe" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".cmd" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".ps1" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".bat" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".cab" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+  <Association Identifier=".appx" ProgId="Applications\notepad.exe" ApplicationName="Notepad" />
+</DefaultAssociations>
