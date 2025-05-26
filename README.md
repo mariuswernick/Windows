@@ -1,47 +1,78 @@
-# Windows File Association Hardening
+# Windows Tools & PowerShell Scripts
 
-This repository provides resources for hardening Windows file associations, specifically to help mitigate the risk of malicious file execution by associating potentially dangerous file types with Notepad.
+A collection of useful Windows administration tools, PowerShell scripts, and utilities for system management and automation.
 
-## Purpose
+## 🛠️ Contents
 
-Attackers often use file types such as `.js`, `.vbs`, `.hta`, and others to deliver malware. By changing the default application for these file types to Notepad, you can reduce the risk of accidental execution.
+This repository contains various tools and scripts for Windows environments:
 
-## Contents
+### File Management & Security
+- **FileAssociations.xml** - Configuration for hardening Windows file associations by redirecting potentially dangerous file types to Notepad
 
-- `FileAssociations.xml`: An XML configuration file for use with Windows' management tools to set default file associations for specific file types to Notepad.
+### PowerShell Scripts
+*Coming soon - PowerShell scripts for various administrative tasks*
 
-## How It Works
+### System Utilities  
+*Coming soon - Additional Windows tools and utilities*
 
-The `FileAssociations.xml` file reassigns the default application for a list of potentially dangerous file extensions (e.g., `.js`, `.vbs`, `.wsf`, `.hta`, etc.) to Notepad. This means that double-clicking these files will open them in Notepad, displaying their contents as text rather than executing them.
+## 📋 Requirements
 
-## Deployment with Intune or Group Policy
+- Windows 10/11 or Windows Server 2016+
+- PowerShell 5.1 or later (PowerShell 7+ recommended for newer scripts)
+- Administrative privileges may be required for some tools
 
-You can deploy these file association settings to Windows devices using either Microsoft Intune or Group Policy:
+## 🚀 Usage
 
-### Microsoft Intune
-1. In the Intune admin center, go to **Devices > Configuration profiles**.
-2. Create a new profile:
-   - **Platform:** Windows 10 and later
-   - **Profile type:** Settings catalog
-3. In the configuration settings, search for and add **Default Associations Configuration File**.
-4. Upload the `FileAssociations.xml` file from this repository.
-5. Assign the profile to the desired device groups.
-6. Save and deploy the profile. The file associations will be applied to targeted devices after the next sync.
+### File Association Hardening
 
-### Group Policy (GPO)
-1. Place the `FileAssociations.xml` file on a network share or local path accessible by target computers.
-2. Open the Group Policy Management Console (GPMC).
-3. Edit or create a GPO linked to your target computers.
-4. Navigate to **Computer Configuration > Administrative Templates > Windows Components > File Explorer**.
-5. Enable the policy **Set a default associations configuration file** and specify the path to your `FileAssociations.xml` file.
-6. Apply the GPO. The associations will be set at next logon or reboot.
+The `FileAssociations.xml` file can be deployed via:
 
-> **Note:** Changing file associations may affect user experience. Only apply in environments where this is appropriate (e.g., enterprise, lab, or security-hardened systems).
+**Microsoft Intune:**
+1. Navigate to **Devices > Configuration profiles**
+2. Create new profile (Windows 10+, Settings catalog)
+3. Add **Default Associations Configuration File**
+4. Upload the XML file and assign to device groups
 
-## Contributing
+**Group Policy:**
+1. Place XML file on accessible network share
+2. Edit GPO: **Computer Configuration > Administrative Templates > Windows Components > File Explorer**
+3. Enable **Set a default associations configuration file**
+4. Specify path to XML file
 
-Contributions are welcome! If you have suggestions for additional file types or improvements, please open an issue or submit a pull request.
+### PowerShell Scripts
 
-## License
+Each PowerShell script includes:
+- Purpose and functionality description
+- Required permissions
+- Usage examples
+- Parameter documentation
 
-This repository is licensed under the MIT License.
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add your tool/script with proper documentation
+4. Submit a pull request
+
+For PowerShell scripts, please include:
+- Comment-based help
+- Error handling
+- Input validation
+- Usage examples
+
+## 📜 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## ⚠️ Disclaimer
+
+These tools are provided as-is for educational and administrative purposes. Test thoroughly in non-production environments before deployment. Some tools may affect system behavior or user experience.
+
+## 📞 Support
+
+If you encounter issues or have suggestions:
+- Open an issue on GitHub
+- Provide detailed error messages and environment information
+- Include steps to reproduce any problems
