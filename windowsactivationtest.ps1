@@ -152,11 +152,19 @@ foreach ($endpoint in $testEndpoints) {
         $tcpClient.Close()
         
     }
+    catch [System.Security.Authentication.AuthenticationException] {
+        Write-Host "  ❌ SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!" -ForegroundColor Red
+        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        $logContent += "  SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!"
+        $logContent += "      Details: $($_.Exception.Message)"
+    }
     catch [System.ComponentModel.Win32Exception] {
         Write-Host "  ❌ SSPI-Fehler (Win32Exception): SSL Inspection oder Proxy-Problem erkannt!" -ForegroundColor Red
         Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "      Error Code: $($_.Exception.NativeErrorCode)" -ForegroundColor Red
         $logContent += "  SSPI-Fehler (Win32Exception): SSL Inspection oder Proxy-Problem erkannt!"
         $logContent += "      Details: $($_.Exception.Message)"
+        $logContent += "      Error Code: $($_.Exception.NativeErrorCode)"
         
         # Methode 2: Invoke-WebRequest als Fallback
         try {
@@ -170,27 +178,15 @@ foreach ($endpoint in $testEndpoints) {
             $logContent += "  Auch alternative Methode fehlgeschlagen: $($_.Exception.Message)"
         }
     }
-    catch [System.Security.Authentication.AuthenticationException] {
-        Write-Host "  ❌ SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!" -ForegroundColor Red
-        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
-        $logContent += "  SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!"
-        $logContent += "      Details: $($_.Exception.Message)"
-    }
-    catch [System.Net.Sockets.SocketException] {
-        Write-Host "  ❌ Netzwerk-Fehler: Möglicherweise blockiert durch Firewall/Proxy" -ForegroundColor Red
-        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
-        $logContent += "  Netzwerk-Fehler: Möglicherweise blockiert durch Firewall/Proxy"
-        $logContent += "      Details: $($_.Exception.Message)"
-    }
     catch {
-        Write-Host "  ❌ Unbekannter SSL-Fehler: $($_.Exception.GetType().Name)" -ForegroundColor Red
+        Write-Host "  ❌ Allgemeiner SSL-Fehler: $($_.Exception.GetType().Name)" -ForegroundColor Red
         Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "      Inner Exception: $($_.Exception.InnerException.Message)" -ForegroundColor Red
-        $logContent += "  Unbekannter SSL-Fehler: $($_.Exception.GetType().Name)"
-        $logContent += "      Details: $($_.Exception.Message)"
         if ($_.Exception.InnerException) {
+            Write-Host "      Inner Exception: $($_.Exception.InnerException.Message)" -ForegroundColor Red
             $logContent += "      Inner Exception: $($_.Exception.InnerException.Message)"
         }
+        $logContent += "  Allgemeiner SSL-Fehler: $($_.Exception.GetType().Name)"
+        $logContent += "      Details: $($_.Exception.Message)"
     }
 }
 
