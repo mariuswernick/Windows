@@ -107,18 +107,24 @@ foreach ($endpoint in $testEndpoints) {
     $logContent += ""
     $logContent += "Analysiere SSL-Zertifikat für: $endpoint"
     
+    # Methode 1: Direkte SSL-Stream Verbindung
     try {
-        # TCP-Verbindung aufbauen und SSL-Stream erstellen
+        # TLS-Protokoll explizit setzen
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+        
         $tcpClient = New-Object System.Net.Sockets.TcpClient
+        $tcpClient.ReceiveTimeout = 10000
+        $tcpClient.SendTimeout = 10000
         $tcpClient.Connect($endpoint, 443)
         
-        $sslStream = New-Object System.Net.Security.SslStream($tcpClient.GetStream())
+        $sslStream = New-Object System.Net.Security.SslStream($tcpClient.GetStream(), $false, ({$true}))
         $sslStream.AuthenticateAsClient($endpoint)
         
         $cert = $sslStream.RemoteCertificate
         $cert2 = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($cert)
         
         # Zertifikat-Details ausgeben
+        Write-Host "  ✅ SSL-Verbindung erfolgreich" -ForegroundColor Green
         Write-Host "  Subject: $($cert2.Subject)" -ForegroundColor Green
         Write-Host "  Issuer: $($cert2.Issuer)" -ForegroundColor $(if ($cert2.Issuer -like "*Corporate*" -or $cert2.Issuer -like "*Proxy*" -or $cert2.Issuer -like "*Firewall*") { "Red" } else { "Green" })
         Write-Host "  Gültig von: $($cert2.NotBefore)" -ForegroundColor White
@@ -126,6 +132,7 @@ foreach ($endpoint in $testEndpoints) {
         Write-Host "  Fingerprint (SHA1): $($cert2.Thumbprint)" -ForegroundColor White
         Write-Host "  Seriennummer: $($cert2.SerialNumber)" -ForegroundColor White
         
+        $logContent += "  SSL-Verbindung erfolgreich"
         $logContent += "  Subject: $($cert2.Subject)"
         $logContent += "  Issuer: $($cert2.Issuer)"
         $logContent += "  Gültig von: $($cert2.NotBefore)"
@@ -134,7 +141,7 @@ foreach ($endpoint in $testEndpoints) {
         $logContent += "  Seriennummer: $($cert2.SerialNumber)"
         
         # SSL Inspection Warnung
-        if ($cert2.Issuer -like "*Corporate*" -or $cert2.Issuer -like "*Proxy*" -or $cert2.Issuer -like "*Firewall*" -or $cert2.Issuer -like "*Internal*") {
+        if ($cert2.Issuer -like "*Corporate*" -or $cert2.Issuer -like "*Proxy*" -or $cert2.Issuer -like "*Firewall*" -or $cert2.Issuer -like "*Internal*" -or $cert2.Issuer -like "*CA*") {
             Write-Host "  ⚠️  WARNUNG: SSL INSPECTION ERKANNT!" -ForegroundColor Red
             Write-Host "      Das Zertifikat wurde möglicherweise durch einen Proxy/Firewall ersetzt." -ForegroundColor Red
             $logContent += "  WARNUNG: SSL INSPECTION ERKANNT!"
@@ -145,9 +152,45 @@ foreach ($endpoint in $testEndpoints) {
         $tcpClient.Close()
         
     }
+    catch [System.ComponentModel.Win32Exception] {
+        Write-Host "  ❌ SSPI-Fehler (Win32Exception): SSL Inspection oder Proxy-Problem erkannt!" -ForegroundColor Red
+        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        $logContent += "  SSPI-Fehler (Win32Exception): SSL Inspection oder Proxy-Problem erkannt!"
+        $logContent += "      Details: $($_.Exception.Message)"
+        
+        # Methode 2: Invoke-WebRequest als Fallback
+        try {
+            Write-Host "  🔄 Versuche alternative Methode..." -ForegroundColor Yellow
+            $webRequest = Invoke-WebRequest -Uri "https://$endpoint" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+            Write-Host "  ✅ HTTPS-Verbindung über Invoke-WebRequest erfolgreich" -ForegroundColor Yellow
+            $logContent += "  HTTPS-Verbindung über Invoke-WebRequest erfolgreich"
+        }
+        catch {
+            Write-Host "  ❌ Auch alternative Methode fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
+            $logContent += "  Auch alternative Methode fehlgeschlagen: $($_.Exception.Message)"
+        }
+    }
+    catch [System.Security.Authentication.AuthenticationException] {
+        Write-Host "  ❌ SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!" -ForegroundColor Red
+        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        $logContent += "  SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!"
+        $logContent += "      Details: $($_.Exception.Message)"
+    }
+    catch [System.Net.Sockets.SocketException] {
+        Write-Host "  ❌ Netzwerk-Fehler: Möglicherweise blockiert durch Firewall/Proxy" -ForegroundColor Red
+        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        $logContent += "  Netzwerk-Fehler: Möglicherweise blockiert durch Firewall/Proxy"
+        $logContent += "      Details: $($_.Exception.Message)"
+    }
     catch {
-        Write-Host "  ❌ Fehler bei SSL-Analyse: $($_.Exception.Message)" -ForegroundColor Red
-        $logContent += "  Fehler bei SSL-Analyse: $($_.Exception.Message)"
+        Write-Host "  ❌ Unbekannter SSL-Fehler: $($_.Exception.GetType().Name)" -ForegroundColor Red
+        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "      Inner Exception: $($_.Exception.InnerException.Message)" -ForegroundColor Red
+        $logContent += "  Unbekannter SSL-Fehler: $($_.Exception.GetType().Name)"
+        $logContent += "      Details: $($_.Exception.Message)"
+        if ($_.Exception.InnerException) {
+            $logContent += "      Inner Exception: $($_.Exception.InnerException.Message)"
+        }
     }
 }
 
