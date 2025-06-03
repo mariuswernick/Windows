@@ -140,12 +140,44 @@ foreach ($endpoint in $testEndpoints) {
         $logContent += "  Fingerprint (SHA1): $($cert2.Thumbprint)"
         $logContent += "  Seriennummer: $($cert2.SerialNumber)"
         
-        # SSL Inspection Warnung
-        if ($cert2.Issuer -like "*Corporate*" -or $cert2.Issuer -like "*Proxy*" -or $cert2.Issuer -like "*Firewall*" -or $cert2.Issuer -like "*Internal*" -or $cert2.Issuer -like "*CA*") {
+        # SSL Inspection Warnung - KORRIGIERTE ERKENNUNG
+        $suspiciousCAs = @(
+            "*Corporate*", "*Proxy*", "*Firewall*", "*Internal*", 
+            "*Company*", "*Enterprise*", "*Organization*", "*Org*",
+            "*ZScaler*", "*Fortinet*", "*SonicWall*", "*Checkpoint*",
+            "*Palo Alto*", "*Symantec*Proxy*", "*BlueCoat*", "*McAfee*Web*"
+        )
+        
+        $isSslInspection = $false
+        foreach ($pattern in $suspiciousCAs) {
+            if ($cert2.Issuer -like $pattern) {
+                $isSslInspection = $true
+                break
+            }
+        }
+        
+        # Legitime CAs NICHT als SSL Inspection melden
+        $legitimateCAs = @(
+            "*Microsoft*", "*DigiCert*", "*VeriSign*", "*Symantec*", 
+            "*GeoTrust*", "*Thawte*", "*GlobalSign*", "*Entrust*",
+            "*Let's Encrypt*", "*Amazon*", "*Google*", "*Akamai*"
+        )
+        
+        foreach ($legit in $legitimateCAs) {
+            if ($cert2.Issuer -like $legit) {
+                $isSslInspection = $false
+                break
+            }
+        }
+        
+        if ($isSslInspection) {
             Write-Host "  ⚠️  WARNUNG: SSL INSPECTION ERKANNT!" -ForegroundColor Red
-            Write-Host "      Das Zertifikat wurde möglicherweise durch einen Proxy/Firewall ersetzt." -ForegroundColor Red
+            Write-Host "      Das Zertifikat wurde durch einen Proxy/Firewall ersetzt." -ForegroundColor Red
             $logContent += "  WARNUNG: SSL INSPECTION ERKANNT!"
-            $logContent += "      Das Zertifikat wurde möglicherweise durch einen Proxy/Firewall ersetzt."
+            $logContent += "      Das Zertifikat wurde durch einen Proxy/Firewall ersetzt."
+        } else {
+            Write-Host "  ✅ Legitimes Zertifikat von vertrauenswürdiger CA" -ForegroundColor Green
+            $logContent += "  Legitimes Zertifikat von vertrauenswürdiger CA"
         }
         
         $sslStream.Close()
@@ -153,29 +185,112 @@ foreach ($endpoint in $testEndpoints) {
         
     }
     catch [System.Security.Authentication.AuthenticationException] {
-        Write-Host "  ❌ SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!" -ForegroundColor Red
+        Write-Host "  ❌ SSL-Authentifizierung fehlgeschlagen: SSPI-Problem!" -ForegroundColor Red
         Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
-        $logContent += "  SSL-Authentifizierung fehlgeschlagen: SSL Inspection aktiv!"
+        $logContent += "  SSL-Authentifizierung fehlgeschlagen: SSPI-Problem!"
         $logContent += "      Details: $($_.Exception.Message)"
-    }
-    catch [System.ComponentModel.Win32Exception] {
-        Write-Host "  ❌ SSPI-Fehler (Win32Exception): SSL Inspection oder Proxy-Problem erkannt!" -ForegroundColor Red
-        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "      Error Code: $($_.Exception.NativeErrorCode)" -ForegroundColor Red
-        $logContent += "  SSPI-Fehler (Win32Exception): SSL Inspection oder Proxy-Problem erkannt!"
-        $logContent += "      Details: $($_.Exception.Message)"
-        $logContent += "      Error Code: $($_.Exception.NativeErrorCode)"
         
-        # Methode 2: Invoke-WebRequest als Fallback
+        # Diagnose-Schritte für SSPI-Fehler
+        Write-Host "  🔍 Diagnose-Schritte:" -ForegroundColor Yellow
+        $logContent += "  Diagnose-Schritte:"
+        
+        # Teste ob Endpunkt erreichbar ist
         try {
-            Write-Host "  🔄 Versuche alternative Methode..." -ForegroundColor Yellow
-            $webRequest = Invoke-WebRequest -Uri "https://$endpoint" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-            Write-Host "  ✅ HTTPS-Verbindung über Invoke-WebRequest erfolgreich" -ForegroundColor Yellow
-            $logContent += "  HTTPS-Verbindung über Invoke-WebRequest erfolgreich"
+            $pingTest = Test-NetConnection -ComputerName $endpoint -Port 443 -InformationLevel Quiet
+            if ($pingTest) {
+                Write-Host "    ✅ Port 443 ist erreichbar" -ForegroundColor Green
+                $logContent += "    Port 443 ist erreichbar"
+                
+                # Versuche Invoke-WebRequest mit verschiedenen TLS-Versionen
+                Write-Host "    🔄 Teste verschiedene TLS-Versionen..." -ForegroundColor Yellow
+                $logContent += "    Teste verschiedene TLS-Versionen..."
+                
+                # TLS 1.2
+                try {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    $webTest = Invoke-WebRequest -Uri "https://$endpoint" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+                    Write-Host "    ✅ TLS 1.2 erfolgreich" -ForegroundColor Green
+                    $logContent += "    TLS 1.2 erfolgreich"
+                }
+                catch {
+                    Write-Host "    ❌ TLS 1.2 fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
+                    $logContent += "    TLS 1.2 fehlgeschlagen: $($_.Exception.Message)"
+                }
+                
+                # TLS 1.3 (falls verfügbar)
+                try {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls13
+                    $webTest = Invoke-WebRequest -Uri "https://$endpoint" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+                    Write-Host "    ✅ TLS 1.3 erfolgreich" -ForegroundColor Green
+                    $logContent += "    TLS 1.3 erfolgreich"
+                }
+                catch {
+                    Write-Host "    ❌ TLS 1.3 fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
+                    $logContent += "    TLS 1.3 fehlgeschlagen: $($_.Exception.Message)"
+                }
+            } else {
+                Write-Host "    ❌ Port 443 nicht erreichbar - Firewall/Proxy-Blockierung" -ForegroundColor Red
+                $logContent += "    Port 443 nicht erreichbar - Firewall/Proxy-Blockierung"
+            }
         }
         catch {
-            Write-Host "  ❌ Auch alternative Methode fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
-            $logContent += "  Auch alternative Methode fehlgeschlagen: $($_.Exception.Message)"
+            Write-Host "    ❌ Netzwerktest fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
+            $logContent += "    Netzwerktest fehlgeschlagen: $($_.Exception.Message)"
+        }
+    }
+    catch [System.ComponentModel.Win32Exception] {
+        $errorCode = $_.Exception.NativeErrorCode
+        Write-Host "  ❌ SSPI-Fehler (Win32Exception): $errorCode" -ForegroundColor Red
+        Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
+        
+        $logContent += "  SSPI-Fehler (Win32Exception): $errorCode"
+        $logContent += "      Details: $($_.Exception.Message)"
+        
+        # Spezifische SSPI Error Code Diagnose
+        switch ($errorCode) {
+            -2146893016 { # 0x80090308 = SEC_E_INVALID_TOKEN
+                Write-Host "      🔍 Diagnose: Ungültiges SSL-Token - möglicherweise SSL Inspection" -ForegroundColor Yellow
+                $logContent += "      Diagnose: Ungültiges SSL-Token - möglicherweise SSL Inspection"
+            }
+            -2146893019 { # 0x80090305 = SEC_E_TARGET_UNKNOWN  
+                Write-Host "      🔍 Diagnose: Unbekanntes Ziel - DNS oder Proxy-Problem" -ForegroundColor Yellow
+                $logContent += "      Diagnose: Unbekanntes Ziel - DNS oder Proxy-Problem"
+            }
+            -2146893022 { # 0x80090302 = SEC_E_UNSUPPORTED_FUNCTION
+                Write-Host "      🔍 Diagnose: Nicht unterstützte SSL-Funktion - TLS-Version Problem" -ForegroundColor Yellow
+                $logContent += "      Diagnose: Nicht unterstützte SSL-Funktion - TLS-Version Problem"
+            }
+            -2146893017 { # 0x80090307 = SEC_E_NO_AUTHENTICATING_AUTHORITY
+                Write-Host "      🔍 Diagnose: Keine vertrauenswürdige CA - SSL Inspection oder Zertifikatsproblem" -ForegroundColor Yellow
+                $logContent += "      Diagnose: Keine vertrauenswürdige CA - SSL Inspection oder Zertifikatsproblem"
+            }
+            default {
+                Write-Host "      🔍 Diagnose: Unbekannter SSPI-Fehler - überprüfen Sie SSL Inspection und Proxy-Konfiguration" -ForegroundColor Yellow
+                $logContent += "      Diagnose: Unbekannter SSPI-Fehler - überprüfen Sie SSL Inspection und Proxy-Konfiguration"
+            }
+        }
+        
+        # Alternative Testmethode mit deaktivierter Zertifikatsprüfung
+        try {
+            Write-Host "  🔄 Teste ohne Zertifikatsprüfung..." -ForegroundColor Yellow
+            
+            # Zertifikatsprüfung temporär deaktivieren
+            $originalCallback = [Net.ServicePointManager]::ServerCertificateValidationCallback
+            [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+            
+            $webRequest = Invoke-WebRequest -Uri "https://$endpoint" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+            Write-Host "  ✅ Verbindung ohne Zertifikatsprüfung erfolgreich - SSL Inspection bestätigt!" -ForegroundColor Red
+            $logContent += "  Verbindung ohne Zertifikatsprüfung erfolgreich - SSL Inspection bestätigt!"
+            
+            # Callback zurücksetzen
+            [Net.ServicePointManager]::ServerCertificateValidationCallback = $originalCallback
+        }
+        catch {
+            Write-Host "  ❌ Auch ohne Zertifikatsprüfung fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
+            $logContent += "  Auch ohne Zertifikatsprüfung fehlgeschlagen: $($_.Exception.Message)"
+            
+            # Callback zurücksetzen
+            [Net.ServicePointManager]::ServerCertificateValidationCallback = $originalCallback
         }
     }
     catch {
