@@ -17,11 +17,21 @@ $logContent += "============================================="
 $logContent += "Test gestartet am: $(Get-Date)"
 $logContent += ""
 
-# Test-Endpunkte
+# Test-Endpunkte (alle Microsoft-Endpunkte)
 $testEndpoints = @(
     "go.microsoft.com",
     "login.live.com",
-    "activation.sls.microsoft.com"
+    "activation.sls.microsoft.com",
+    "crl.microsoft.com",
+    "validation.sls.microsoft.com",
+    "activation-v2.sls.microsoft.com",
+    "validation-v2.sls.microsoft.com",
+    "displaycatalog.mp.microsoft.com",
+    "licensing.mp.microsoft.com",
+    "purchase.mp.microsoft.com",
+    "displaycatalog.md.mp.microsoft.com",
+    "licensing.md.mp.microsoft.com",
+    "purchase.md.mp.microsoft.com"
 )
 
 # 1. PROXY-KONFIGURATION PRÜFEN
