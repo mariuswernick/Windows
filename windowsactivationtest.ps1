@@ -179,13 +179,13 @@ foreach ($endpoint in $testEndpoints) {
         }
     }
     catch {
-        Write-Host "  ❌ Allgemeiner SSL-Fehler: $($_.Exception.GetType().Name)" -ForegroundColor Red
+        Write-Host "  ❌ Allgemeiner Fehler: $($_.Exception.GetType().Name)" -ForegroundColor Red
         Write-Host "      Details: $($_.Exception.Message)" -ForegroundColor Red
         if ($_.Exception.InnerException) {
             Write-Host "      Inner Exception: $($_.Exception.InnerException.Message)" -ForegroundColor Red
             $logContent += "      Inner Exception: $($_.Exception.InnerException.Message)"
         }
-        $logContent += "  Allgemeiner SSL-Fehler: $($_.Exception.GetType().Name)"
+        $logContent += "  Allgemeiner Fehler: $($_.Exception.GetType().Name)"
         $logContent += "      Details: $($_.Exception.Message)"
     }
 }
